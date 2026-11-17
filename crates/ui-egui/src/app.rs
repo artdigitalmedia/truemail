@@ -155,8 +155,17 @@ impl MailApp {
 
     /// Run a command, reporting failures in a toast.
     pub fn run(&mut self, id: &str, params: Value) {
+        let _ = self.run_told(id, params);
+    }
+
+    /// [`MailApp::run`], also telling the caller how it went: what the command answered, or why
+    /// it didn't run. For a program that asked for the command and has no window to read a toast
+    /// in (a voice-control program, through a later launch's `--cmd`).
+    pub fn run_told(&mut self, id: &str, params: Value) -> Result<Value, String> {
         use mailcraft_engine::CmdError;
-        match self.session.run(id, &params) {
+        let result = self.session.run(id, &params);
+        let told = result.clone().map_err(|e| e.to_string());
+        match result {
             // Held to be looked at first: said in the message's window when it has one.
             Ok(v) if id == "compose.send" && v.get("check").is_some() => {
                 // One that can't be read (none ever should) still holds the message, the dialog
@@ -192,6 +201,7 @@ impl MailApp {
             Err(CmdError::Params(m) | CmdError::Failed(m)) => self.session.notice(m, true),
             Err(e) => self.session.notice(e.to_string(), true),
         }
+        told
     }
 
     /// A `mailto:` link or a mail file the system handed MailCraft (as its mail app, or through

@@ -31,7 +31,7 @@ use platform::apple_events;
 #[cfg(windows)]
 use platform::toast;
 use platform::{appearance, secrets};
-use startup::{args, logfile, portable, single_instance};
+use startup::{args, logfile, portable, single_instance, told};
 use window::{ClipboardKeys, app_icon, clipboard_files, drag_out, read_clipboard};
 use window::{display, graphics};
 
@@ -171,6 +171,11 @@ impl App {
             single_instance::show(ctx, self.native_wayland);
             handed.give(&mut self.app);
         }
+        // What a later launch told this window to run (`told.rs`): run, and answered.
+        for ask in self.instance.as_ref().map(single_instance::Server::take_told).unwrap_or_default() {
+            let said = told::run(&mut self.app, &ask.told);
+            ask.answer(said);
+        }
         #[cfg(target_os = "macos")]
         {
             apple_events::deliver(&self.finder, &mut self.app, ctx);
@@ -281,12 +286,18 @@ fn main() -> eframe::Result {
     }
     // One MailCraft per data folder: started again, it brings the running one forward and leaves,
     // before it moves, logs or opens anything there (`single_instance.rs`).
-    let instance = match launch.root.as_deref().map(|r| single_instance::claim(r, &launch.handed)) {
+    // The one running is also told this launch's `--cmd` commands, and says how they went.
+    let ask = args::Handed { run: told::from_args(&launch.args), ..launch.handed.clone() };
+    let instance = match launch.root.as_deref().map(|r| single_instance::claim(r, &ask)) {
+        Some(single_instance::Claim::Told(said)) => {
+            say_out(&said);
+            return Ok(());
+        }
         Some(single_instance::Claim::Shown) => {
             say(if !launch.handed.is_empty() {
                 "MailCraft is already running: what it was started with opens there"
             } else if launch.has("--cmd") {
-                "MailCraft is already running: its window is brought forward (--cmd is run only by the first)"
+                "MailCraft is already running: its window is brought forward (it is from before 0.41, and ran no --cmd)"
             } else {
                 "MailCraft is already running: its window is brought forward"
             });

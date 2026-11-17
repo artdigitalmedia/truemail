@@ -24,6 +24,11 @@
 //! kept beside the socket in a file only the user can read (`.key`); a request without it is
 //! refused, so another program can't start messages or add events through the socket (one that
 //! can read the user's private files can already do far more).
+//!
+//! A launch started with `--cmd` hands those commands over too (`"run": […]`, `told.rs`): the
+//! window runs the ones it runs for another program and the answer is `ok` and how each went,
+//! `ok {"ran": […]}`, which the launch prints. A voice-control program drives the window that
+//! way. A MailCraft from before 0.41 reads no `run` and answers a bare `ok`.
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -31,6 +36,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use super::args::{Handed, MAX_ATTACHED};
+use super::told::{self, Told};
 
 #[cfg(unix)]
 use std::os::unix::net::{UnixListener, UnixStream};
@@ -47,6 +53,13 @@ const MAX_OPEN: usize = 64;
 const MAX_WAITING: usize = 256;
 /// Most launches' files to send waiting for the window (a new message each).
 const MAX_WAITING_SENDS: usize = 16;
+/// Most requests' commands waiting for the window; a request past them is told it's busy.
+const MAX_WAITING_TOLD: usize = 16;
+/// How long a request's commands wait for the window to run them: less than a launch waits for
+/// its answer ([`TIMEOUT`]), so it's told they weren't run instead of opening a window of its own.
+const TOLD_WAIT: Duration = Duration::from_secs(3);
+/// Longest answer a launch reads: `ok`, and how its commands went (`told.rs` keeps under it).
+const MAX_REPLY: u64 = 1 << 20;
 /// Longest key file read.
 const MAX_KEY: u64 = 256;
 /// How long either side waits for the other.
@@ -60,6 +73,9 @@ const KEY_WAIT: Duration = Duration::from_millis(40);
 pub enum Claim {
     /// The running MailCraft is showing its window: exit without one.
     Shown,
+    /// The running MailCraft ran this launch's commands, and how each went (`told.rs`): exit
+    /// without a window, saying it.
+    Told(String),
     /// The first MailCraft on this data: open the window and answer later launches.
     Primary(Server),
     /// A window of its own, answering nothing (as before).
@@ -71,7 +87,44 @@ pub enum Claim {
 struct Asks {
     show: AtomicBool,
     handed: Mutex<Handed>,
+    told: Mutex<Vec<Ask>>,
     wake: Mutex<Option<egui::Context>>,
+}
+
+/// One request's commands, waiting for the window to run them and say how they went.
+pub struct Ask {
+    pub told: Vec<Told>,
+    said: std::sync::mpsc::Sender<String>,
+    /// The launch was told they weren't run in time: they aren't run late, on another message.
+    given_up: Arc<AtomicBool>,
+}
+
+/// The answering thread's end of an [`Ask`].
+struct Waiting {
+    answer: std::sync::mpsc::Receiver<String>,
+    given_up: Arc<AtomicBool>,
+}
+
+impl Waiting {
+    /// How the commands went, or `None` when the window hasn't run them in time: they're then
+    /// not run at all.
+    fn wait(self) -> Option<String> {
+        match self.answer.recv_timeout(TOLD_WAIT) {
+            Ok(said) => Some(said),
+            Err(_) => {
+                self.given_up.store(true, Ordering::Release);
+                // Run just as the wait ended: said after all.
+                self.answer.try_recv().ok()
+            }
+        }
+    }
+}
+
+impl Ask {
+    /// Tell the launch that asked how its commands went (one that gave up waiting isn't told).
+    pub fn answer(self, said: String) {
+        let _ = self.said.send(said);
+    }
 }
 
 /// The first MailCraft's end of the socket: a thread answers launches as long as it runs.
@@ -97,7 +150,30 @@ impl Server {
         (show || !handed.is_empty()).then_some(handed)
     }
 
-    fn ask(&self, handed: Handed) {
+    /// What requests told the window to run since the last call, in order: each is run and
+    /// answered ([`Ask::answer`]).
+    pub fn take_told(&self) -> Vec<Ask> {
+        let mut told = std::mem::take(&mut *self.asks.told.lock().unwrap_or_else(PoisonError::into_inner));
+        told.retain(|ask| !ask.given_up.load(Ordering::Acquire));
+        told
+    }
+
+    /// Note a request for the window. With commands to run, where their answer will come:
+    /// `Err` when too many requests' commands already wait.
+    fn ask(&self, mut handed: Handed) -> Result<Option<Waiting>, ()> {
+        let run = std::mem::take(&mut handed.run);
+        let answer = if run.is_empty() {
+            None
+        } else {
+            let mut waiting = self.asks.told.lock().unwrap_or_else(PoisonError::into_inner);
+            if waiting.len() >= MAX_WAITING_TOLD {
+                return Err(());
+            }
+            let (said, answer) = std::sync::mpsc::channel();
+            let given_up = Arc::new(AtomicBool::new(false));
+            waiting.push(Ask { told: run, said, given_up: Arc::clone(&given_up) });
+            Some(Waiting { answer, given_up })
+        };
         {
             let mut waiting = self.asks.handed.lock().unwrap_or_else(PoisonError::into_inner);
             let room = MAX_WAITING.saturating_sub(waiting.open.len());
@@ -109,6 +185,7 @@ impl Server {
         if let Some(ctx) = self.asks.wake.lock().unwrap_or_else(PoisonError::into_inner).as_ref() {
             ctx.request_repaint();
         }
+        Ok(answer)
     }
 
     /// Stop answering as MailCraft closes: the socket goes (a portable copy leaves no trace).
@@ -141,17 +218,25 @@ pub fn claim(data: &Path, handed: &Handed) -> Claim {
 
 /// The request a launch sends: the key, what it hands over, and a newline. A launch has one group
 /// of files to send at most (its `--attach`); a MailCraft from before 0.39 reads no `attach`.
+/// Its commands to run go along only when it has some.
 fn request(key: &str, handed: &Handed) -> String {
     let open: Vec<&String> = handed.open.iter().take(MAX_OPEN).collect();
     let attach: Vec<&String> = handed.attach.iter().flatten().take(MAX_ATTACHED).collect();
-    let mut line = serde_json::json!({ "key": key, "open": open, "attach": attach }).to_string();
+    let mut request = serde_json::json!({ "key": key, "open": open, "attach": attach });
+    if !handed.run.is_empty()
+        && let Some(request) = request.as_object_mut()
+    {
+        request.insert("run".into(), told::to_json(&handed.run));
+    }
+    let mut line = request.to_string();
     line.push('\n');
     line
 }
 
 /// What a request hands over, or `None` when it isn't one with `key`: anything but one JSON
 /// object with that key, a list of strings to open and, if there is one, a list of strings to
-/// send (empty ones, and those past [`MAX_OPEN`] or [`MAX_ATTACHED`], left out).
+/// send (empty ones, and those past [`MAX_OPEN`] or [`MAX_ATTACHED`], left out) and a list of
+/// commands to run (`told::from_json`).
 fn parse_request(line: &str, key: &str) -> Option<Handed> {
     let value: serde_json::Value = serde_json::from_str(line.trim_end()).ok()?;
     let sent = value.get("key")?.as_str()?;
@@ -167,7 +252,11 @@ fn parse_request(line: &str, key: &str) -> Option<Handed> {
         Some(list) => strings(list, MAX_ATTACHED)?,
         None => Vec::new(),
     };
-    Some(Handed::new(open, attach))
+    let run = match value.get("run") {
+        Some(list) => told::from_json(list)?,
+        None => Vec::new(),
+    };
+    Some(Handed { run, ..Handed::new(open, attach) })
 }
 
 /// Compares a sent key with ours without stopping at the first wrong byte, so a caller timing
@@ -346,7 +435,8 @@ fn claim_at(path: &Path, handed: &Handed) -> Claim {
         match UnixStream::connect(path) {
             Ok(stream) => {
                 return match hand_over(stream, path, handed, || std::thread::sleep(KEY_WAIT)) {
-                    Ok(()) => Claim::Shown,
+                    Ok(Some(said)) => Claim::Told(said),
+                    Ok(None) => Claim::Shown,
                     Err(e) => {
                         log::warn!("the running MailCraft didn't answer ({e}); opening a window");
                         Claim::Alone
@@ -395,7 +485,8 @@ fn new_key(key_file: &Path) -> std::io::Result<String> {
 /// name ([`listen`]), so a launch that reaches it in between, without the election lock, finds
 /// no key or the one of the run before, was refused and opened a second window. One that doesn't
 /// answer in time isn't asked again.
-fn hand_over(stream: UnixStream, socket: &Path, handed: &Handed, mut wait: impl FnMut()) -> std::io::Result<()> {
+/// `Ok`: how the launch's commands went, when it had some and the MailCraft there says.
+fn hand_over(stream: UnixStream, socket: &Path, handed: &Handed, mut wait: impl FnMut()) -> std::io::Result<Option<String>> {
     let mut stream = stream;
     for _ in 1..KEY_TRIES {
         match hand_over_once(&stream, socket, handed) {
@@ -460,16 +551,27 @@ impl std::io::Read for Patient<'_> {
     }
 }
 
-/// Ask once, with the key beside the socket, and wait for the `ok`.
-fn hand_over_once(stream: &UnixStream, socket: &Path, handed: &Handed) -> std::io::Result<()> {
+/// Ask once, with the key beside the socket, and wait for the `ok`: a bare one, or one with
+/// how the commands went after it.
+fn hand_over_once(stream: &UnixStream, socket: &Path, handed: &Handed) -> std::io::Result<Option<String>> {
     use std::io::{BufRead, Read, Write};
     stream.set_write_timeout(Some(TIMEOUT))?;
     let key = read_key(socket)?;
     let mut writer = stream;
     writer.write_all(request(&key, handed).as_bytes())?;
     let mut reply = String::new();
-    std::io::BufReader::new(Patient::new(stream).take(16)).read_line(&mut reply)?;
-    if reply == OK { Ok(()) } else { Err(std::io::Error::other("no ok")) }
+    std::io::BufReader::new(Patient::new(stream).take(MAX_REPLY)).read_line(&mut reply)?;
+    read_reply(&reply).ok_or_else(|| std::io::Error::other("no ok"))
+}
+
+/// What the running MailCraft answered: `Some(None)` for a bare `ok`, `Some(Some(said))` for
+/// `ok` and how the commands went, `None` for anything else (a line cut short too).
+fn read_reply(reply: &str) -> Option<Option<String>> {
+    if reply == OK {
+        return Some(None);
+    }
+    let said = reply.strip_prefix("ok ")?.strip_suffix('\n')?;
+    Some(Some(said.to_string()))
 }
 
 /// Answer launches on a thread of its own for as long as the process runs.
@@ -501,9 +603,17 @@ fn answer(stream: &UnixStream, server: &Server) -> std::io::Result<()> {
     std::io::BufReader::new(Patient::new(stream).take(MAX_REQUEST)).read_line(&mut line)?;
     let handed =
         parse_request(&line, &server.key).ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "not a request with the key"))?;
-    server.ask(handed);
     let mut writer = stream;
-    writer.write_all(OK.as_bytes())
+    let reply = match server.ask(handed) {
+        Ok(None) => OK.to_string(),
+        // The window runs them on its next frame.
+        Ok(Some(waiting)) => match waiting.wait() {
+            Some(said) => format!("ok {said}\n"),
+            None => "ok {\"error\":\"the window didn't run them in time\"}\n".to_string(),
+        },
+        Err(()) => "ok {\"error\":\"too many commands are waiting\"}\n".to_string(),
+    };
+    writer.write_all(reply.as_bytes())
 }
 
 #[cfg(test)]

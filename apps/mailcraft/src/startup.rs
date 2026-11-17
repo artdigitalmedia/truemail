@@ -5,3 +5,4 @@ pub(super) mod args;
 pub(super) mod logfile;
 pub(super) mod portable;
 pub(super) mod single_instance;
+pub(super) mod told;

@@ -23,13 +23,16 @@ pub struct Handed {
     pub open: Vec<String>,
     /// Files to send ([`attaching`]), a group from each launch.
     pub attach: Vec<Vec<String>>,
+    /// Commands for the running window to run and answer (`told.rs`): only on what a later
+    /// launch hands over, never on what the window is given to open.
+    pub run: Vec<super::told::Told>,
 }
 
 impl Handed {
     /// Links and files to open, and one launch's files to send (a new message, when there are
     /// any).
     pub fn new(open: Vec<String>, attach: Vec<String>) -> Handed {
-        Handed { open, attach: if attach.is_empty() { Vec::new() } else { vec![attach] } }
+        Handed { open, attach: if attach.is_empty() { Vec::new() } else { vec![attach] }, run: Vec::new() }
     }
 
     /// Links and files to open, nothing to attach.
@@ -38,9 +41,9 @@ impl Handed {
         Handed::new(open, Vec::new())
     }
 
-    /// Nothing to open or attach.
+    /// Nothing to open, attach or run.
     pub fn is_empty(&self) -> bool {
-        self.open.is_empty() && self.attach.is_empty()
+        self.open.is_empty() && self.attach.is_empty() && self.run.is_empty()
     }
 
     /// Files the Finder sent (opened with MailCraft, or dropped on its Dock icon): message,
@@ -83,6 +86,11 @@ Usage: mailcraft [options] [mailto:LINK | FILE]…
 
 A mailto: link starts a new message; a .eml or .msg file is shown, and a .ics or .vcf
 file's events or people are added. If MailCraft is running, they open there.
+
+If MailCraft is running, --cmd tells its window what to run, and how each command
+went is printed as one line of JSON. That is for a voice-control or switch-access
+program: only moving about, reading, marking, starting and writing a message and
+archiving are run for it, never sending or deleting.
 
 A portable copy keeps its data beside the app when portable.txt is there.
 The command-line client is mailcraft-cli (mailcraft-cli --help).";

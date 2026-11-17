@@ -346,8 +346,8 @@ fn a_launch_hands_over_its_files_to_send() {
     let path = socket("attach");
     let Claim::Primary(first) = claim_at(&path, &Handed::default()) else { panic!("the first launch listens") };
     let files = |a: &[&str]| a.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-    let one = Handed { open: Vec::new(), attach: vec![files(&["/u/report.pdf", "/u/photo.jpg"])] };
-    let two = Handed { open: files(&["mailto:a@x.example"]), attach: vec![files(&["/u/notes.txt"])] };
+    let one = Handed { open: Vec::new(), attach: vec![files(&["/u/report.pdf", "/u/photo.jpg"])], ..Handed::default() };
+    let two = Handed { open: files(&["mailto:a@x.example"]), attach: vec![files(&["/u/notes.txt"])], ..Handed::default() };
     assert!(matches!(claim_at(&path, &one), Claim::Shown));
     assert!(matches!(claim_at(&path, &two), Claim::Shown));
     let got = first.take().unwrap();
@@ -355,14 +355,14 @@ fn a_launch_hands_over_its_files_to_send() {
     assert_eq!(got.attach, [files(&["/u/report.pdf", "/u/photo.jpg"]), files(&["/u/notes.txt"])], "a message each, in order");
     // As many as wait at once.
     for _ in 0..MAX_WAITING_SENDS + 4 {
-        first.ask(one.clone());
+        let _ = first.ask(one.clone());
     }
     assert_eq!(first.take().unwrap().attach.len(), MAX_WAITING_SENDS);
     first.close();
     let _ = std::fs::remove_dir_all(path.parent().unwrap());
 
     let many: Vec<String> = (0..500).map(|i| format!("/u/{i}.pdf")).collect();
-    let read = parse_request(&request("k", &Handed { open: Vec::new(), attach: vec![many] }), "k").unwrap();
+    let read = parse_request(&request("k", &Handed { open: Vec::new(), attach: vec![many], ..Handed::default() }), "k").unwrap();
     assert_eq!(read.attach.iter().map(Vec::len).collect::<Vec<_>>(), [MAX_ATTACHED]);
     assert_eq!(parse_request("{\"key\":\"k\",\"open\":[\"a\"]}", "k"), Some(Handed::opening(vec!["a".to_string()])), "before 0.39");
     assert_eq!(parse_request("{\"key\":\"k\",\"open\":[],\"attach\":[\"\",\" \"]}", "k"), Some(Handed::default()), "nothing to send");
@@ -372,5 +372,64 @@ fn a_launch_hands_over_its_files_to_send() {
         "{\"key\":\"k\",\"attach\":[\"/u/a.pdf\"]}",
     ] {
         assert_eq!(parse_request(junk, "k"), None, "{junk:?}");
+    }
+}
+
+fn told(id: &str) -> Told {
+    Told { id: id.to_string(), params: "{}".to_string() }
+}
+
+/// A launch's `--cmd` commands reach the running window, which runs them and answers; the
+/// launch gets what it said. A window that doesn't run them in time says so, and never runs
+/// them late.
+#[test]
+fn a_launch_tells_the_window_what_to_run() {
+    let path = socket("told");
+    let Claim::Primary(first) = claim_at(&path, &Handed::default()) else { panic!("the first launch listens") };
+    let ask = Handed { run: vec![told("list.next"), told("mail.reply")], ..Handed::default() };
+    let claim = std::thread::scope(|scope| {
+        let launch = scope.spawn(|| claim_at(&path, &ask));
+        // The window, on a frame after the request came.
+        let until = std::time::Instant::now() + TIMEOUT;
+        let asked = loop {
+            if let Some(asked) = first.take_told().pop() {
+                break asked;
+            }
+            assert!(std::time::Instant::now() < until, "the commands never reached the window");
+            std::thread::sleep(Duration::from_millis(5));
+        };
+        assert_eq!(asked.told, ask.run);
+        asked.answer("{\"ran\":[]}".into());
+        launch.join().unwrap()
+    });
+    let Claim::Told(said) = claim else { panic!("the launch is told how its commands went") };
+    assert_eq!(said, "{\"ran\":[]}");
+    assert_eq!(first.take(), Some(Handed::default()), "the window comes forward, with nothing to open");
+    // A window that draws no frame: the launch is told, opens no window of its own, and the
+    // commands are gone.
+    let Claim::Told(said) = claim_at(&path, &ask) else { panic!("told they weren't run") };
+    assert!(said.contains("in time"), "{said}");
+    assert!(first.take_told().is_empty(), "not run late");
+    first.close();
+    let _ = std::fs::remove_dir_all(path.parent().unwrap());
+}
+
+/// A request names commands only when the launch has some, so one without is as it was; they're
+/// read with the key like the rest, and an answer is `ok` alone or `ok` and one line more.
+#[test]
+fn commands_ride_a_request_with_the_key() {
+    let plain = request("k", &Handed::opening(vec!["mailto:a@x.example".into()]));
+    assert!(!plain.contains("run"), "{plain}");
+    let line = request("k", &Handed { run: vec![told("list.next")], ..Handed::default() });
+    assert!(line.ends_with('\n') && !line.trim_end().contains('\n'), "one line");
+    assert_eq!(parse_request(&line, "k").map(|h| h.run), Some(vec![told("list.next")]));
+    assert_eq!(parse_request(&line, "another"), None);
+    for junk in ["{\"key\":\"k\",\"open\":[],\"run\":\"list.next\"}", "{\"key\":\"k\",\"open\":[],\"run\":[7]}"] {
+        assert_eq!(parse_request(junk, "k"), None, "{junk:?}");
+    }
+    assert_eq!(read_reply("ok\n"), Some(None));
+    assert_eq!(read_reply("ok {\"ran\":[]}\n"), Some(Some("{\"ran\":[]}".to_string())));
+    for junk in ["", "ok", "ok {\"ran\":[]}", "no\n", "okay\n"] {
+        assert_eq!(read_reply(junk), None, "{junk:?}");
     }
 }
