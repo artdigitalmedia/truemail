@@ -188,6 +188,7 @@ impl Worker {
             | Job::UseHeldKey { .. }
             | Job::Pgp { .. }
             | Job::CheckUpdates
+            | Job::DraftReply { .. }
             | Job::StopSearch => {}
             Job::Start { .. }
             | Job::SmtpPassword { .. }

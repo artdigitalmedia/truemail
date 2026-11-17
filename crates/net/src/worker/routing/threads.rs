@@ -230,6 +230,25 @@ impl Pool {
         }
     }
 
+    /// A reply drafted by the language model on this computer (`assistant.rs`), on a thread of
+    /// its own: loading the model and writing the draft take a while.
+    pub(super) fn draft_reply(&self, id: u64, system: String, prompt: String, program: String, model: String) {
+        let sink = self.sink.clone();
+        let spawned = spawn("mail-draft", move || {
+            let (text, error) = match crate::assistant::draft(&program, &model, &system, &prompt) {
+                Ok(text) => (text, None),
+                Err(e) => {
+                    log::warn!("drafting a reply: {e}");
+                    (String::new(), Some(e.to_string()))
+                }
+            };
+            sink.emit(Event::ReplyDrafted { id, text, error });
+        });
+        if let Err(e) = spawned {
+            self.sink.emit(Event::ReplyDrafted { id, text: String::new(), error: Some(e.to_string()) });
+        }
+    }
+
     /// The servers for an address being set up (autoconfiguration), looked for on a thread of
     /// its own.
     pub(super) fn discover(&self, email: String) {

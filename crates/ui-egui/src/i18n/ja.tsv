@@ -1819,3 +1819,17 @@ count	occurrences	回
 	Stop sending and receiving	送受信を停止
 	Sending	送信
 	Receiving	受信
+	A reply kept by name. Picking it starts a reply with this text in it, for you to change or send.	名前を付けて保存した返信です。選ぶと、このテキストが入った返信が始まり、変更も送信もできます。
+	A reply written on this computer for you to change or send; the message goes nowhere else	このコンピューター上で作成される返信で、変更も送信もできます。メッセージはほかのどこにも送られません
+	Canned text	定型文
+	Delete this canned text	この定型文を削除
+	Draft a reply	返信を下書き
+	Drafting…	下書きを作成中…
+	Edit a canned text	定型文を編集
+	Edit canned text	定型文の編集
+	New canned text…	新しい定型文…
+	New canned text	新しい定型文
+	No canned text yet.	定型文はまだありません。
+	Reply with a text you keep for answers you give often	よく使う返信用に保存したテキストで返信します
+	Thanks, not interested	ありがとうございます。今回は見送ります
+	The reply opens when it's written; this can take a minute	返信は書き上がると開きます。1 分ほどかかることがあります

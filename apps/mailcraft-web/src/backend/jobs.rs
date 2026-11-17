@@ -120,6 +120,11 @@ pub(super) async fn job(sh: &Rcs, id: &str, j: Job) {
             sh,
             Event::Identity { account: id.to_string(), chain: Vec::new(), older: Vec::new(), for_reading: false, error: Some(BROWSER_SMIME.into()) },
         ),
+        // A model is run by a program on the computer, which a web page can't start.
+        Job::DraftReply { id, .. } => emit(
+            sh,
+            Event::ReplyDrafted { id, text: String::new(), error: Some("replies are drafted in the MailCraft app, not in the browser".into()) },
+        ),
         Job::Start { .. }
         | Job::SmtpPassword { .. }
         | Job::DavPassword { .. }

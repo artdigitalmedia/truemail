@@ -1822,3 +1822,17 @@ count	occurrences	회
 	Stop sending and receiving	보내기/받기 중지
 	Sending	보내기
 	Receiving	받기
+	A reply kept by name. Picking it starts a reply with this text in it, for you to change or send.	이름을 붙여 보관한 답장입니다. 선택하면 이 텍스트가 들어간 답장이 시작되며, 고치거나 보낼 수 있습니다.
+	A reply written on this computer for you to change or send; the message goes nowhere else	이 컴퓨터에서 작성되는 답장으로, 고치거나 보낼 수 있습니다. 메시지는 다른 곳으로 전송되지 않습니다
+	Canned text	상용구
+	Delete this canned text	이 상용구 삭제
+	Draft a reply	답장 초안 작성
+	Drafting…	초안 작성 중…
+	Edit a canned text	상용구 편집
+	Edit canned text	상용구 편집하기
+	New canned text…	새 상용구…
+	New canned text	새 상용구
+	No canned text yet.	아직 상용구가 없습니다.
+	Reply with a text you keep for answers you give often	자주 하는 답변용으로 보관한 텍스트로 답장합니다
+	Thanks, not interested	감사합니다만 관심 없습니다
+	The reply opens when it's written; this can take a minute	답장은 작성이 끝나면 열립니다. 1분 정도 걸릴 수 있습니다

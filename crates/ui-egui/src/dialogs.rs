@@ -247,6 +247,8 @@ pub enum Dialog {
     SearchFolder(Box<SearchFolderForm>),
     /// A Quick Step made or changed.
     QuickStep(Box<QuickStepForm>),
+    /// A canned text (a reply kept by name) made or changed.
+    CannedText(Box<CannedForm>),
     /// A picture attachment, larger.
     PicturePreview {
         key: mailcraft_engine::model::MessageKey,
@@ -487,6 +489,7 @@ impl Dialog {
             Dialog::EditRule(f) => f.error = Some(e),
             Dialog::SearchFolder(f) => f.error = Some(e),
             Dialog::QuickStep(f) => f.error = Some(e),
+            Dialog::CannedText(f) => f.error = Some(e),
             Dialog::EditAccount(f) => f.error = Some(e),
             Dialog::Event(f) => f.error = Some(e),
             Dialog::Task(f) => f.error = Some(e),
@@ -694,6 +697,7 @@ fn body(ui: &mut Ui, d: &mut Dialog, s: &Session, pics: &mut crate::reading::Pic
         | Dialog::EmptySubject
         | Dialog::CtrlEnter { .. }
         | Dialog::SendCheck(_)
+        | Dialog::CannedText(..)
         | Dialog::WordCount(..) => writing::draw(ui, d, s, t, acts),
         Dialog::ConfirmDeleteContact { .. }
         | Dialog::PicturePreview { .. }

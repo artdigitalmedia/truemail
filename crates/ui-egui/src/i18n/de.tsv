@@ -1823,3 +1823,17 @@ count	occurrences	Terminen
 	Stop sending and receiving	Senden und Empfangen anhalten
 	Sending	Senden
 	Receiving	Empfangen
+	A reply kept by name. Picking it starts a reply with this text in it, for you to change or send.	Eine Antwort, die unter einem Namen gespeichert ist. Wenn Sie sie auswählen, beginnt eine Antwort mit diesem Text, die Sie ändern oder senden können.
+	A reply written on this computer for you to change or send; the message goes nowhere else	Eine Antwort, die auf diesem Computer geschrieben wird und die Sie ändern oder senden können; die Nachricht verlässt den Computer nicht
+	Canned text	Textbaustein
+	Delete this canned text	Diesen Textbaustein löschen
+	Draft a reply	Antwort entwerfen
+	Drafting…	Entwurf wird geschrieben…
+	Edit a canned text	Einen Textbaustein bearbeiten
+	Edit canned text	Textbaustein bearbeiten
+	New canned text…	Neuer Textbaustein…
+	New canned text	Neuer Textbaustein
+	No canned text yet.	Noch keine Textbausteine.
+	Reply with a text you keep for answers you give often	Mit einem Text antworten, den Sie für häufige Antworten gespeichert haben
+	Thanks, not interested	Danke, kein Interesse
+	The reply opens when it's written; this can take a minute	Die Antwort wird geöffnet, sobald sie geschrieben ist; das kann eine Minute dauern

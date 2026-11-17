@@ -112,6 +112,45 @@ pub(super) fn draw(ui: &mut Ui, d: &mut Dialog, s: &Session, t: &Tokens, acts: &
             }
             !cancel
         }
+        Dialog::CannedText(f) => {
+            ui.set_width(460.0);
+            title(ui, t, if f.original.is_some() { "Edit canned text" } else { "New canned text" });
+            ui.add(
+                egui::Label::new(
+                    RichText::new(tl!("A reply kept by name. Picking it starts a reply with this text in it, for you to change or send."))
+                        .color(t.dim),
+                )
+                .wrap(),
+            );
+            ui.add_space(8.0);
+            let l = ui.label(RichText::new(tl!("Name")).color(t.dim).small());
+            ui.add(egui::TextEdit::singleline(&mut f.name).hint_text(tl!("Thanks, not interested")).desired_width(f32::INFINITY)).labelled_by(l.id);
+            ui.add_space(6.0);
+            let l = ui.label(RichText::new(tl!("Text")).color(t.dim).small());
+            egui::ScrollArea::vertical().max_height(220.0).show(ui, |ui| {
+                ui.add(egui::TextEdit::multiline(&mut f.text).desired_rows(8).desired_width(f32::INFINITY)).labelled_by(l.id);
+            });
+            if let Some(e) = &f.error {
+                ui.add_space(4.0);
+                ui.label(RichText::new(e.as_str()).color(t.danger).small());
+            }
+            let ready = !f.name.trim().is_empty() && !f.text.trim().is_empty();
+            if let Some(old) = f.original.clone() {
+                ui.add_space(6.0);
+                if ui.button(RichText::new(tl!("Delete this canned text")).color(t.danger)).clicked() {
+                    acts.push(Action::Submit("canned.delete", json!({"name": old})));
+                }
+            }
+            let (ok, cancel) = buttons(ui, t, "Save", ready);
+            if ok && ready {
+                let p = match &f.original {
+                    Some(old) => json!({"name": f.name.trim(), "text": f.text, "was": old}),
+                    None => json!({"name": f.name.trim(), "text": f.text}),
+                };
+                acts.push(Action::Submit("canned.save", p));
+            }
+            !cancel
+        }
         Dialog::WordCount(n, selection) => {
             ui.set_width(320.0);
             title(ui, t, "Word count");
@@ -409,5 +448,20 @@ fn an_address_is_added_unless_it_is_there_whole() {
     assert_eq!(added("bo@x.example, zo"), "bo@x.example, zo; Ann <ann@x.example>; ");
     for there in ["ann@x.example", "Ann Lee <ANN@x.example>; ", "bo@x.example; Ann@X.example; "] {
         assert_eq!(added(there), there);
+    }
+}
+
+/// The canned text dialog's fields: a new one, or one being changed (`original`: its name).
+#[derive(Clone, Debug, Default)]
+pub struct CannedForm {
+    pub original: Option<String>,
+    pub name: String,
+    pub text: String,
+    pub error: Option<String>,
+}
+
+impl CannedForm {
+    pub fn edit(c: &mailcraft_engine::CannedText) -> CannedForm {
+        CannedForm { original: Some(c.name.clone()), name: c.name.clone(), text: c.text.clone(), error: None }
     }
 }

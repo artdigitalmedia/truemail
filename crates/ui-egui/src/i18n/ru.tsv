@@ -1822,3 +1822,17 @@ count	occurrences	повторений
 	Stop sending and receiving	Остановить отправку и получение
 	Sending	Отправка
 	Receiving	Получение
+	A reply kept by name. Picking it starts a reply with this text in it, for you to change or send.	Ответ, сохранённый под именем. При выборе начинается ответ с этим текстом, который можно изменить или отправить.
+	A reply written on this computer for you to change or send; the message goes nowhere else	Ответ, написанный на этом компьютере, который можно изменить или отправить; письмо никуда больше не передаётся
+	Canned text	Шаблон ответа
+	Delete this canned text	Удалить этот шаблон ответа
+	Draft a reply	Подготовить ответ
+	Drafting…	Подготовка ответа…
+	Edit a canned text	Изменить шаблон ответа
+	Edit canned text	Изменение шаблона ответа
+	New canned text…	Новый шаблон ответа…
+	New canned text	Новый шаблон ответа
+	No canned text yet.	Шаблонов ответа пока нет.
+	Reply with a text you keep for answers you give often	Ответить текстом, который вы храните для частых ответов
+	Thanks, not interested	Спасибо, не интересует
+	The reply opens when it's written; this can take a minute	Ответ откроется, когда будет написан; это может занять минуту

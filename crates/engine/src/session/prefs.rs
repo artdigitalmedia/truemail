@@ -210,6 +210,15 @@ pub struct Prefs {
     /// Quick Steps: actions done to the selection in one go ([`quick_steps`]).
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub quick_steps: Vec<quick_steps::QuickStep>,
+    /// Canned text: replies kept by name, picked beside Reply ([`CannedText`]).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub canned: Vec<CannedText>,
+    /// The program that runs the language model replies are drafted with (llama.cpp's
+    /// `llama-server`), and its model file. Empty: looked for where TrueVoice keeps its own.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub assistant_program: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub assistant_model: String,
     /// Play animations: hovers and selections easing, panes sliding, notices sliding in (off:
     /// everything changes at once).
     pub animations: bool,
@@ -372,6 +381,9 @@ impl Default for Prefs {
             meeting_hosts: Vec::new(),
             meeting_for_all: false,
             quick_steps: Vec::new(),
+            canned: Vec::new(),
+            assistant_program: String::new(),
+            assistant_model: String::new(),
             folder_pane_minimized: false,
             collapsed: BTreeSet::new(),
             pane_order: Vec::new(),

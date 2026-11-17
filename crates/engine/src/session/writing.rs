@@ -10,12 +10,14 @@ mod outbox;
 mod quote;
 mod reactions;
 mod reopen;
+mod replies;
 mod sending;
 mod signatures;
 pub use drafts::Drafted;
 pub(crate) use drafts::DraftedMemo;
 pub use quote::Quote;
 pub use reactions::Reactions;
+pub use replies::{CANNED_MAX, CannedText, Drafting};
 pub use sending::SendBlock;
 pub use signatures::signature_parts;
 

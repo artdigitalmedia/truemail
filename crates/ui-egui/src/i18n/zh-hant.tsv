@@ -1822,3 +1822,17 @@ count	occurrences	次
 	Stop sending and receiving	停止傳送和接收
 	Sending	傳送
 	Receiving	接收
+	A reply kept by name. Picking it starts a reply with this text in it, for you to change or send.	以名稱儲存的回覆。選擇後會開始一封包含此文字的回覆，供您修改或傳送。
+	A reply written on this computer for you to change or send; the message goes nowhere else	在這部電腦上寫好的回覆，供您修改或傳送；郵件不會傳到其他任何地方
+	Canned text	常用回覆
+	Delete this canned text	刪除此常用回覆
+	Draft a reply	草擬回覆
+	Drafting…	正在草擬…
+	Edit a canned text	編輯某個常用回覆
+	Edit canned text	編輯常用回覆
+	New canned text…	新增常用回覆…
+	New canned text	新增常用回覆
+	No canned text yet.	還沒有常用回覆。
+	Reply with a text you keep for answers you give often	用您為常見答覆儲存的文字回覆
+	Thanks, not interested	謝謝，不感興趣
+	The reply opens when it's written; this can take a minute	回覆寫好後會開啟；這可能需要一分鐘

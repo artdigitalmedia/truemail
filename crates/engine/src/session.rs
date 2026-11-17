@@ -49,7 +49,7 @@ pub use security::{
     SmimeSettings,
 };
 pub use send_receive::{SendReceive, TransferRow};
-pub use writing::{Compose, Drafted, Quote, Reactions, SendBlock, SendCheck, signature_parts};
+pub use writing::{CANNED_MAX, CannedText, Compose, Drafted, Drafting, Quote, Reactions, SendBlock, SendCheck, signature_parts};
 // The message list's arrangement and rows, named here as before.
 #[cfg(test)]
 pub(crate) use mailboxes::arrange_list;
@@ -490,6 +490,8 @@ pub struct Session {
     pub updates_stable_only: bool,
     /// File › About's update check.
     pub update: UpdateCheck,
+    /// The reply a language model on this computer is writing, if one is (`writing/replies.rs`).
+    pub drafting: Option<Drafting>,
 }
 
 const NOTICE_MAX: usize = 50;
@@ -611,6 +613,7 @@ impl Session {
             build_sha: None,
             updates_stable_only: false,
             update: UpdateCheck::NotAsked,
+            drafting: None,
         };
         if let Some(store) = s.store.clone() {
             match store.load_doc(RULES_DOC) {

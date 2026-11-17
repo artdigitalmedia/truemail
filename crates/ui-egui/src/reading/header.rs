@@ -271,6 +271,12 @@ fn action_bar(s: &Session, st: &UiState, ui: &mut Ui, o: &Open<'_>, acts: &mut V
             if o.summary.is_none_or(|m| m.reaction.is_empty() && !m.bulk) && !p.bulk && r.security.as_ref().is_none_or(|sec| sec.lock.is_none()) {
                 reactions::react_button(ui, &t, acts);
             }
+            // Replies ready to change or send: one kept by name, or one drafted on this computer.
+            super::replies::canned_button(ui, s, &t, acts);
+            // (Not in the browser: a web page can't start the program that runs the model.)
+            if cfg!(not(target_arch = "wasm32")) {
+                super::replies::draft_button(ui, s, &t, acts);
+            }
             ui.add_space(6.0);
             if widgets::pill_button(ui, Icon::Print, "Print", &t).on_hover_text(tl!("Open as a PDF to print")).clicked() {
                 acts.push(Action::Print);

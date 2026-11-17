@@ -1819,3 +1819,17 @@ count	occurrences	次
 	Stop sending and receiving	停止发送和接收
 	Sending	发送
 	Receiving	接收
+	A reply kept by name. Picking it starts a reply with this text in it, for you to change or send.	按名称保存的回复。选择后会开始一封包含此文本的回复，供您修改或发送。
+	A reply written on this computer for you to change or send; the message goes nowhere else	在这台电脑上写好的回复，供您修改或发送；邮件不会发往其他任何地方
+	Canned text	常用回复
+	Delete this canned text	删除此常用回复
+	Draft a reply	起草回复
+	Drafting…	正在起草…
+	Edit a canned text	编辑某个常用回复
+	Edit canned text	编辑常用回复
+	New canned text…	新建常用回复…
+	New canned text	新建常用回复
+	No canned text yet.	还没有常用回复。
+	Reply with a text you keep for answers you give often	用您为常见答复保存的文本回复
+	Thanks, not interested	谢谢，不感兴趣
+	The reply opens when it's written; this can take a minute	回复写好后会打开；这可能需要一分钟

@@ -165,6 +165,11 @@ pub enum Job {
     /// Ask where MailCraft is published for its recent releases (File › About › Check for
     /// updates); answered by [`Event::Releases`].
     CheckUpdates,
+    /// Have a language model on this computer write a reply: `system` says how, `prompt` is the
+    /// message to answer. `program` runs the model in file `model` (llama.cpp's `llama-server`;
+    /// each empty: looked for where TrueVoice keeps its own). Answered by
+    /// [`Event::ReplyDrafted`] with the same `id`.
+    DraftReply { id: u64, system: String, prompt: String, program: String, model: String },
     /// Ask the account's server which addresses its mail is sent from (issue #81: a JMAP
     /// server keeps them, as identities). Answered by [`Event::IdentitiesFound`].
     FindIdentities { account: String },
@@ -360,6 +365,7 @@ impl Job {
             | Job::WorkOffline { .. }
             | Job::SetSync { .. }
             | Job::CheckUpdates
+            | Job::DraftReply { .. }
             | Job::StopSearch
             | Job::CheckRevocation { .. }
             | Job::FindHeldKeys { .. } => "",
@@ -470,6 +476,12 @@ pub enum Event {
         etag: String,
         modified: String,
         unchanged: bool,
+        error: Option<String>,
+    },
+    /// The reply [`Job::DraftReply`] asked for, or why there's none.
+    ReplyDrafted {
+        id: u64,
+        text: String,
         error: Option<String>,
     },
     /// Server settings found for an address (`None`: nothing published; guess instead).

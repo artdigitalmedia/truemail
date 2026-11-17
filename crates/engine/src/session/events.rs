@@ -171,6 +171,7 @@ impl Session {
             Event::Discovered { email, config, source } => {
                 self.discovered.insert(email.trim().to_ascii_lowercase(), Some((config.map(|c| *c), source)));
             }
+            Event::ReplyDrafted { id, text, error } => self.reply_drafted(id, &text, error),
             Event::Releases { releases, error } => {
                 self.update = match error {
                     Some(e) => UpdateCheck::Failed(e),
