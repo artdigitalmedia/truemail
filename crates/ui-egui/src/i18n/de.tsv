@@ -1837,3 +1837,8 @@ count	occurrences	Terminen
 	Reply with a text you keep for answers you give often	Mit einem Text antworten, den Sie für häufige Antworten gespeichert haben
 	Thanks, not interested	Danke, kein Interesse
 	The reply opens when it's written; this can take a minute	Die Antwort wird geöffnet, sobald sie geschrieben ist; das kann eine Minute dauern
+	Archive the message	Nachricht archivieren
+	Delete the message	Nachricht löschen
+	Leave the message where it is	Nachricht dort lassen, wo sie ist
+	Move the message to {folder}	Nachricht nach {folder} verschieben
+	When the reply is sent	Wenn die Antwort gesendet ist

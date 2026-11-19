@@ -1832,3 +1832,8 @@ count	occurrences	keer
 	Reply with a text you keep for answers you give often	Antwoorden met een tekst die u bewaart voor antwoorden die u vaak geeft
 	Thanks, not interested	Bedankt, geen interesse
 	The reply opens when it's written; this can take a minute	Het antwoord wordt geopend zodra het geschreven is; dit kan een minuut duren
+	Archive the message	Het bericht archiveren
+	Delete the message	Het bericht verwijderen
+	Leave the message where it is	Het bericht laten staan
+	Move the message to {folder}	Het bericht verplaatsen naar {folder}
+	When the reply is sent	Wanneer het antwoord is verzonden

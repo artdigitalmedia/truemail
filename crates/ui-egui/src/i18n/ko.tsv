@@ -1836,3 +1836,8 @@ count	occurrences	회
 	Reply with a text you keep for answers you give often	자주 하는 답변용으로 보관한 텍스트로 답장합니다
 	Thanks, not interested	감사합니다만 관심 없습니다
 	The reply opens when it's written; this can take a minute	답장은 작성이 끝나면 열립니다. 1분 정도 걸릴 수 있습니다
+	Archive the message	메시지 보관
+	Delete the message	메시지 삭제
+	Leave the message where it is	메시지를 그대로 두기
+	Move the message to {folder}	메시지를 {folder}(으)로 이동
+	When the reply is sent	답장을 보낸 뒤

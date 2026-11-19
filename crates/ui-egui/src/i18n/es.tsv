@@ -1837,3 +1837,8 @@ count	occurrences	repeticiones
 	Reply with a text you keep for answers you give often	Responder con un texto que guarda para las respuestas que da a menudo
 	Thanks, not interested	Gracias, no me interesa
 	The reply opens when it's written; this can take a minute	La respuesta se abre cuando está escrita; puede tardar un minuto
+	Archive the message	Archivar el mensaje
+	Delete the message	Eliminar el mensaje
+	Leave the message where it is	Dejar el mensaje donde está
+	Move the message to {folder}	Mover el mensaje a {folder}
+	When the reply is sent	Cuando se envíe la respuesta

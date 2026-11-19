@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::icons::Icon;
+use mailcraft_engine::AfterReply;
 
 pub(super) fn draw(ui: &mut Ui, d: &mut Dialog, s: &Session, t: &Tokens, acts: &mut Vec<Action>) -> bool {
     match d {
@@ -130,6 +131,30 @@ pub(super) fn draw(ui: &mut Ui, d: &mut Dialog, s: &Session, t: &Tokens, acts: &
             egui::ScrollArea::vertical().max_height(220.0).show(ui, |ui| {
                 ui.add(egui::TextEdit::multiline(&mut f.text).desired_rows(8).desired_width(f32::INFINITY)).labelled_by(l.id);
             });
+            ui.add_space(6.0);
+            // What becomes of the message answered: each canned text has its own.
+            ui.horizontal(|ui| {
+                let l = ui.label(tl!("When the reply is sent"));
+                egui::ComboBox::from_id_salt("canned-after")
+                    .width(240.0)
+                    .selected_text(CannedForm::after_label(&f.after))
+                    .show_ui(ui, |ui| {
+                        let mut choices = vec![AfterReply::Stay, AfterReply::Delete, AfterReply::Archive];
+                        choices.extend(f.folders.iter().map(|p| AfterReply::Move(p.clone())));
+                        // One it moves to that no account has any more is still shown, to be changed.
+                        if let AfterReply::Move(p) = &f.after
+                            && !f.folders.contains(p)
+                        {
+                            choices.push(f.after.clone());
+                        }
+                        for c in choices {
+                            let label = CannedForm::after_label(&c);
+                            ui.selectable_value(&mut f.after, c, label);
+                        }
+                    })
+                    .response
+                    .labelled_by(l.id);
+            });
             if let Some(e) = &f.error {
                 ui.add_space(4.0);
                 ui.label(RichText::new(e.as_str()).color(t.danger).small());
@@ -143,9 +168,10 @@ pub(super) fn draw(ui: &mut Ui, d: &mut Dialog, s: &Session, t: &Tokens, acts: &
             }
             let (ok, cancel) = buttons(ui, t, "Save", ready);
             if ok && ready {
+                let after = serde_json::to_value(&f.after).unwrap_or_default();
                 let p = match &f.original {
-                    Some(old) => json!({"name": f.name.trim(), "text": f.text, "was": old}),
-                    None => json!({"name": f.name.trim(), "text": f.text}),
+                    Some(old) => json!({"name": f.name.trim(), "text": f.text, "was": old, "after": after}),
+                    None => json!({"name": f.name.trim(), "text": f.text, "after": after}),
                 };
                 acts.push(Action::Submit("canned.save", p));
             }
@@ -457,11 +483,28 @@ pub struct CannedForm {
     pub original: Option<String>,
     pub name: String,
     pub text: String,
+    /// What becomes of the message answered, once the reply is sent.
+    pub after: AfterReply,
+    /// The folders it can move to: each account's own, by path, once.
+    pub folders: Vec<String>,
     pub error: Option<String>,
 }
 
 impl CannedForm {
-    pub fn edit(c: &mailcraft_engine::CannedText) -> CannedForm {
-        CannedForm { original: Some(c.name.clone()), name: c.name.clone(), text: c.text.clone(), error: None }
+    pub fn new(s: &Session) -> CannedForm {
+        CannedForm { folders: super::QuickStepForm::folders(s), ..CannedForm::default() }
+    }
+
+    pub fn edit(s: &Session, c: &mailcraft_engine::CannedText) -> CannedForm {
+        CannedForm { original: Some(c.name.clone()), name: c.name.clone(), text: c.text.clone(), after: c.after.clone(), ..CannedForm::new(s) }
+    }
+
+    fn after_label(after: &AfterReply) -> String {
+        match after {
+            AfterReply::Stay => tl!("Leave the message where it is").to_string(),
+            AfterReply::Delete => tl!("Delete the message").to_string(),
+            AfterReply::Archive => tl!("Archive the message").to_string(),
+            AfterReply::Move(folder) => tf!("Move the message to {folder}", folder = folder),
+        }
     }
 }

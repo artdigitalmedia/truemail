@@ -1837,3 +1837,8 @@ count	occurrences	kez
 	Reply with a text you keep for answers you give often	Sık verdiğiniz yanıtlar için sakladığınız bir metinle yanıtlayın
 	Thanks, not interested	Teşekkürler, ilgilenmiyorum
 	The reply opens when it's written; this can take a minute	Yanıt yazıldığında açılır; bu bir dakika sürebilir
+	Archive the message	İletiyi arşivle
+	Delete the message	İletiyi sil
+	Leave the message where it is	İletiyi olduğu yerde bırak
+	Move the message to {folder}	İletiyi {folder} klasörüne taşı
+	When the reply is sent	Yanıt gönderildiğinde

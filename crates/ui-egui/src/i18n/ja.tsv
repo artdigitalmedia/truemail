@@ -1833,3 +1833,8 @@ count	occurrences	回
 	Reply with a text you keep for answers you give often	よく使う返信用に保存したテキストで返信します
 	Thanks, not interested	ありがとうございます。今回は見送ります
 	The reply opens when it's written; this can take a minute	返信は書き上がると開きます。1 分ほどかかることがあります
+	Archive the message	メッセージをアーカイブする
+	Delete the message	メッセージを削除する
+	Leave the message where it is	メッセージをそのままにする
+	Move the message to {folder}	メッセージを {folder} に移動する
+	When the reply is sent	返信を送信したとき

@@ -49,7 +49,7 @@ pub use security::{
     SmimeSettings,
 };
 pub use send_receive::{SendReceive, TransferRow};
-pub use writing::{CANNED_MAX, CannedText, Compose, Drafted, Drafting, Quote, Reactions, SendBlock, SendCheck, signature_parts};
+pub use writing::{AfterReply, CANNED_MAX, CannedText, Compose, Drafted, Drafting, Quote, Reactions, SendBlock, SendCheck, signature_parts};
 // The message list's arrangement and rows, named here as before.
 #[cfg(test)]
 pub(crate) use mailboxes::arrange_list;

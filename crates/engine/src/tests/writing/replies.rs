@@ -1,7 +1,7 @@
 //! Engine tests: canned text and a reply drafted by a language model on this computer.
 
 use super::*;
-use crate::{CANNED_MAX, Prefs};
+use crate::{AfterReply, CANNED_MAX, Prefs};
 
 const POSTER: &str = "Your proof for the festival poster is ready";
 
@@ -163,4 +163,125 @@ fn the_model_s_program_and_file_are_the_user_s_choice() {
         _ => None,
     });
     assert_eq!(chosen, Some(("C:\\Tools\\llama-server.exe".to_string(), "D:\\Models\\large.gguf".to_string())));
+}
+
+/// Sends the reply being written and has it delivered (the sample mailbox files it at once; a
+/// server says so with an event); the jobs asked for meanwhile.
+fn send_and_deliver(s: &mut Session) -> Vec<Job> {
+    s.take_jobs();
+    s.run("compose.send", &json!({})).unwrap();
+    let mut jobs = s.take_jobs();
+    if let Some(Job::Send { id, account, .. }) = jobs.iter().find(|j| matches!(j, Job::Send { .. })).cloned() {
+        s.apply(Event::Sent { account, id });
+        jobs.extend(s.take_jobs());
+    }
+    assert!(s.compose.is_none(), "sent");
+    jobs
+}
+
+/// The folder of the sample mailbox the message with `subject` is in now (the Inbox is left
+/// open, as the tests found it).
+fn where_is(s: &mut Session, subject: &str) -> Option<&'static str> {
+    let mut found = None;
+    for folder in ["INBOX", "Trash", "Archive", "Projects"] {
+        s.run("folder.open", &json!({"account": "sample", "folder": folder})).unwrap();
+        if s.list.iter().any(|m| m.subject == subject) {
+            found = Some(folder);
+        }
+    }
+    s.run("folder.open", &json!({"account": "sample", "folder": "INBOX"})).unwrap();
+    found
+}
+
+#[test]
+fn each_canned_text_says_what_becomes_of_the_message_answered() {
+    let mut s = sample_session("canned-after");
+    s.run("canned.save", &json!({"name": "Outsourcing", "text": "Thank you, but we're not looking for this.", "after": "delete"})).unwrap();
+    s.run("canned.save", &json!({"name": "Approved", "text": "Approved, thank you!"})).unwrap();
+    s.run("canned.save", &json!({"name": "Filed", "text": "Thanks, filed.", "after": {"move": "Projects"}})).unwrap();
+    assert_eq!(
+        s.run("canned.list", &json!({})).unwrap(),
+        json!([
+            {"name": "Outsourcing", "text": "Thank you, but we're not looking for this.", "after": "delete"},
+            {"name": "Approved", "text": "Approved, thank you!"},
+            {"name": "Filed", "text": "Thanks, filed.", "after": {"move": "Projects"}},
+        ])
+    );
+    // Changed without saying: it keeps what it did. Said: it's changed.
+    s.run("canned.save", &json!({"name": "Outsourcing", "text": "No, thank you.", "was": "Outsourcing"})).unwrap();
+    assert_eq!(s.prefs.canned[0].after, AfterReply::Delete);
+    s.run("canned.save", &json!({"name": "Approved", "text": "Approved, thank you!", "was": "Approved", "after": "archive"})).unwrap();
+    s.run("canned.save", &json!({"name": "Approved", "text": "Approved, thank you!", "was": "Approved", "after": "stay"})).unwrap();
+    assert_eq!(s.prefs.canned[1].after, AfterReply::Stay);
+    for bad in [json!("shred"), json!(7), json!({"move": ""}), json!({"move": 7}), json!({"forward": "a@b.example"})] {
+        let asked = json!({"name": "New", "text": "x", "after": bad});
+        assert!(matches!(s.run("canned.save", &asked), Err(CmdError::Params(_))), "{asked}");
+    }
+    assert_eq!(s.prefs.canned.len(), 3);
+}
+
+#[test]
+fn a_canned_reply_that_deletes_does_it_once_the_reply_is_sent() {
+    let mut s = sample_session("canned-delete");
+    s.run("canned.save", &json!({"name": "Outsourcing", "text": "Thank you, but we're not looking for this.", "after": "delete"})).unwrap();
+    s.run("list.open", &key_of(&s, POSTER)).unwrap();
+    s.run("mail.cannedReply", &json!({"name": "Outsourcing"})).unwrap();
+    // Said as the reply opens; nothing has moved yet.
+    assert!(s.notices.last().is_some_and(|n| !n.error && n.text.contains("moves to Deleted Items")), "{:?}", s.notices.last());
+    assert_eq!(s.compose.as_ref().unwrap().after_send, AfterReply::Delete);
+    assert!(s.list.iter().any(|m| m.subject == POSTER));
+    send_and_deliver(&mut s);
+    assert!(!s.list.iter().any(|m| m.subject == POSTER), "gone from the Inbox");
+    assert!(s.reading.as_ref().is_none_or(|r| r.parsed.as_ref().is_none_or(|p| p.subject != POSTER)), "and from the reading pane");
+    assert_eq!(where_is(&mut s, POSTER), Some("Trash"), "in Deleted Items");
+    // The reply itself went out.
+    s.run("folder.open", &json!({"account": "sample", "folder": "Sent"})).unwrap();
+    assert!(s.list.iter().any(|m| m.subject == format!("Re: {POSTER}")));
+    // Taken back like any move.
+    s.run("edit.undo", &json!({})).unwrap();
+    assert_eq!(where_is(&mut s, POSTER), Some("INBOX"));
+}
+
+#[test]
+fn a_canned_reply_files_nothing_when_it_isn_t_sent_or_says_to_leave_it() {
+    let mut s = sample_session("canned-stays");
+    s.run("canned.save", &json!({"name": "Outsourcing", "text": "No, thank you.", "after": "delete"})).unwrap();
+    s.run("canned.save", &json!({"name": "Approved", "text": "Approved, thank you!"})).unwrap();
+    s.run("canned.save", &json!({"name": "Filed", "text": "Thanks, filed.", "after": {"move": "No such folder"}})).unwrap();
+    // Thrown away, not sent: the message stays.
+    s.run("list.open", &key_of(&s, POSTER)).unwrap();
+    s.run("mail.cannedReply", &json!({"name": "Outsourcing"})).unwrap();
+    s.run("compose.discard", &json!({})).unwrap();
+    assert_eq!(where_is(&mut s, POSTER), Some("INBOX"));
+    // One that says nothing leaves it, as an ordinary reply does.
+    s.run("list.open", &key_of(&s, POSTER)).unwrap();
+    s.run("mail.cannedReply", &json!({"name": "Approved"})).unwrap();
+    assert_eq!(s.compose.as_ref().unwrap().after_send, AfterReply::Stay);
+    send_and_deliver(&mut s);
+    s.run("mail.reply", &json!({})).unwrap();
+    send_and_deliver(&mut s);
+    assert_eq!(where_is(&mut s, POSTER), Some("INBOX"));
+    // A folder the account doesn't have: said, and the message stays.
+    s.run("list.open", &key_of(&s, POSTER)).unwrap();
+    s.run("mail.cannedReply", &json!({"name": "Filed"})).unwrap();
+    send_and_deliver(&mut s);
+    assert!(s.notices.last().is_some_and(|n| n.error && n.text.contains("stayed where it is")), "{:?}", s.notices.last());
+    assert_eq!(where_is(&mut s, POSTER), Some("INBOX"));
+}
+
+#[test]
+fn a_canned_reply_archives_or_moves_to_a_folder() {
+    let mut s = sample_session("canned-move");
+    s.run("canned.save", &json!({"name": "Archived", "text": "Thanks.", "after": "archive"})).unwrap();
+    s.run("canned.save", &json!({"name": "Filed", "text": "Thanks, filed.", "after": {"move": "Projects"}})).unwrap();
+    s.run("list.open", &key_of(&s, POSTER)).unwrap();
+    s.run("mail.cannedReply", &json!({"name": "Filed"})).unwrap();
+    assert!(s.notices.last().is_some_and(|n| n.text.contains("moves to Projects")));
+    send_and_deliver(&mut s);
+    assert_eq!(where_is(&mut s, POSTER), Some("Projects"));
+    let other = "Sound mix, version 3";
+    s.run("list.open", &key_of(&s, other)).unwrap();
+    s.run("mail.cannedReply", &json!({"name": "Archived"})).unwrap();
+    send_and_deliver(&mut s);
+    assert_eq!(where_is(&mut s, other), Some("Archive"));
 }

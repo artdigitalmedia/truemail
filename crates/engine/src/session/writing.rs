@@ -17,7 +17,7 @@ pub use drafts::Drafted;
 pub(crate) use drafts::DraftedMemo;
 pub use quote::Quote;
 pub use reactions::Reactions;
-pub use replies::{CANNED_MAX, CannedText, Drafting};
+pub use replies::{AfterReply, CANNED_MAX, CannedText, Drafting};
 pub use sending::SendBlock;
 pub use signatures::signature_parts;
 
@@ -107,6 +107,10 @@ pub struct Compose {
     /// Ask the recipients for a read receipt.
     #[serde(default)]
     pub read_receipt: bool,
+    /// What becomes of the message answered once this is sent (a reply made from a canned text
+    /// that says so: `writing/replies.rs`).
+    #[serde(default, skip_serializing_if = "AfterReply::is_stay")]
+    pub after_send: AfterReply,
     /// Where replies go, when not to the sender (Outlook's "Have replies sent to").
     #[serde(default)]
     pub reply_to: String,
@@ -769,5 +773,8 @@ impl Session {
         self.composes.retain(|x| x.id != c.id);
         self.sent_away.retain(|x| x.id != c.id);
         self.notice(said, false);
+        if delivered {
+            self.file_answered(c);
+        }
     }
 }

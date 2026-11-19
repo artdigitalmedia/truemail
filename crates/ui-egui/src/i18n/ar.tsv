@@ -1832,3 +1832,8 @@ count	occurrences	مرات
 	Reply with a text you keep for answers you give often	الرد بنص تحتفظ به للإجابات التي تكررها كثيرًا
 	Thanks, not interested	شكرًا، لست مهتمًا
 	The reply opens when it's written; this can take a minute	يُفتح الرد عند اكتمال كتابته؛ قد يستغرق ذلك دقيقة
+	Archive the message	أرشفة الرسالة
+	Delete the message	حذف الرسالة
+	Leave the message where it is	ترك الرسالة في مكانها
+	Move the message to {folder}	نقل الرسالة إلى {folder}
+	When the reply is sent	عند إرسال الرد

@@ -28,14 +28,14 @@ pub(crate) fn canned_button(ui: &mut Ui, s: &Session, t: &Tokens, acts: &mut Vec
         }
         ui.separator();
         if ui.button(tl!("New canned text…")).clicked() {
-            acts.push(Action::Dialog(Dialog::CannedText(Box::default())));
+            acts.push(Action::Dialog(Dialog::CannedText(Box::new(CannedForm::new(s)))));
             ui.close();
         }
         if !s.prefs.canned.is_empty() {
             ui.menu_button(tl!("Edit a canned text"), |ui| {
                 for c in &s.prefs.canned {
                     if ui.button(c.name.as_str()).clicked() {
-                        acts.push(Action::Dialog(Dialog::CannedText(Box::new(CannedForm::edit(c)))));
+                        acts.push(Action::Dialog(Dialog::CannedText(Box::new(CannedForm::edit(s, c)))));
                         ui.close();
                     }
                 }

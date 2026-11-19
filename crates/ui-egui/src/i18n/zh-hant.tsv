@@ -1836,3 +1836,8 @@ count	occurrences	次
 	Reply with a text you keep for answers you give often	用您為常見答覆儲存的文字回覆
 	Thanks, not interested	謝謝，不感興趣
 	The reply opens when it's written; this can take a minute	回覆寫好後會開啟；這可能需要一分鐘
+	Archive the message	封存郵件
+	Delete the message	刪除郵件
+	Leave the message where it is	將郵件留在原處
+	Move the message to {folder}	將郵件移到 {folder}
+	When the reply is sent	回覆傳送後

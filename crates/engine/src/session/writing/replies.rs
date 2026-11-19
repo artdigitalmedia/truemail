@@ -27,6 +27,30 @@ const DRAFT_MAX: usize = 8_000;
 pub struct CannedText {
     pub name: String,
     pub text: String,
+    /// What becomes of the message answered, once a reply made from this is sent.
+    #[serde(default, skip_serializing_if = "AfterReply::is_stay")]
+    pub after: AfterReply,
+}
+
+/// What becomes of the message answered once the reply is sent: it stays, or it's filed away
+/// (a pitch declined needs no keeping). Each canned text has its own. As JSON: `"stay"`,
+/// `"delete"`, `"archive"` or `{"move": "<folder>"}`.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AfterReply {
+    #[default]
+    Stay,
+    /// To Deleted Items (from where it can be taken back).
+    Delete,
+    Archive,
+    /// To a folder of the message's account, by its path.
+    Move(String),
+}
+
+impl AfterReply {
+    pub fn is_stay(&self) -> bool {
+        *self == AfterReply::Stay
+    }
 }
 
 /// A reply being drafted: the job's `id`, and the message it answers.
@@ -61,8 +85,9 @@ impl Session {
     }
 
     /// Keep a canned text: a new one, or the one named `was` changed (and renamed, when `name`
-    /// differs).
-    pub fn save_canned(&mut self, name: &str, text: &str, was: Option<&str>) -> CmdResult {
+    /// differs). `after`: what becomes of a message answered with it (`None`: as it was, and
+    /// for a new one it stays).
+    pub fn save_canned(&mut self, name: &str, text: &str, was: Option<&str>, after: Option<AfterReply>) -> CmdResult {
         let name = name.trim();
         if name.is_empty() || name.chars().count() > CANNED_NAME_MAX || name.chars().any(char::is_control) {
             return Err(CmdError::Params(format!("a canned text needs a name (up to {CANNED_NAME_MAX} characters)")));
@@ -79,7 +104,13 @@ impl Session {
         if self.canned_at(name).is_some_and(|i| Some(i) != replacing) {
             return Err(CmdError::Params(format!("there's already a canned text named `{name}`")));
         }
-        let kept = CannedText { name: name.to_string(), text: text.to_string() };
+        if let Some(AfterReply::Move(folder)) = &after
+            && (folder.trim().is_empty() || folder.chars().count() > 1024 || folder.chars().any(char::is_control))
+        {
+            return Err(CmdError::Params("which folder the message moves to".into()));
+        }
+        let after = after.or_else(|| replacing.and_then(|i| self.prefs.canned.get(i)).map(|c| c.after.clone())).unwrap_or_default();
+        let kept = CannedText { name: name.to_string(), text: text.to_string(), after };
         if replacing.is_none() && self.prefs.canned.len() >= CANNED_MAX {
             return Err(CmdError::Failed(format!("there can be up to {CANNED_MAX} canned texts")));
         }
@@ -104,8 +135,58 @@ impl Session {
             (None, Some(i)) => Some(i),
             (None, None) => return Err(CmdError::Params("which canned text: its `name` or `index`".into())),
         };
-        let text = at.and_then(|i| self.prefs.canned.get(i)).map(|c| c.text.clone()).ok_or_else(|| CmdError::Params("no such canned text".into()))?;
-        self.reply_with_text(&text)
+        let canned = at.and_then(|i| self.prefs.canned.get(i)).cloned().ok_or_else(|| CmdError::Params("no such canned text".into()))?;
+        let made = self.reply_with_text(&canned.text)?;
+        let id = made.get("compose").and_then(serde_json::Value::as_u64);
+        if let Some(c) = self.compose.iter_mut().chain(self.composes.iter_mut()).find(|c| Some(c.id) == id) {
+            c.after_send = canned.after.clone();
+        }
+        // Said as the reply opens: nothing is filed away behind the user's back.
+        match &canned.after {
+            AfterReply::Stay => {}
+            AfterReply::Delete => self.notice("When you send this reply, the message it answers moves to Deleted Items".to_string(), false),
+            AfterReply::Archive => self.notice("When you send this reply, the message it answers is archived".to_string(), false),
+            AfterReply::Move(folder) => self.notice(format!("When you send this reply, the message it answers moves to {folder}"), false),
+        }
+        Ok(made)
+    }
+
+    /// A reply made from a canned text was sent: the message it answers is filed as that canned
+    /// text says ([`AfterReply`]), with an Undo like any move. A reply only kept in the Outbox
+    /// (offline) files nothing: the message stays until its answer has really gone.
+    pub(super) fn file_answered(&mut self, c: &Compose) {
+        let (Some(src), false) = (c.source.clone(), c.after_send.is_stay() || c.mode == Some(ReplyMode::Forward)) else { return };
+        let dest = match &c.after_send {
+            AfterReply::Stay => return,
+            AfterReply::Delete => self.account(&src.account).and_then(|a| a.folder(FolderRole::Trash)).map(|f| f.path.clone()),
+            AfterReply::Archive => self.account(&src.account).and_then(|a| a.folder(FolderRole::Archive)).map(|f| f.path.clone()),
+            AfterReply::Move(folder) => self.folder(&src.account, folder).map(|f| f.path.clone()),
+        };
+        let Some(dest) = dest else {
+            return self.notice("The message you answered stayed where it is: its account has no such folder".to_string(), true);
+        };
+        // Gone already (moved or deleted by hand), or there already: nothing to do.
+        let Some(summary) = self.summary(&src) else { return };
+        if src.folder == dest || self.import_holds(&src.account).is_err() {
+            return;
+        }
+        let back: Vec<(String, String)> =
+            if summary.message_id.is_empty() { Vec::new() } else { vec![(summary.message_id.clone(), src.folder.clone())] };
+        // The one on screen gives way to the next, as when it's moved by hand.
+        let shown = self.reading.as_ref().is_some_and(|r| r.key == src) || self.selection.contains(&src);
+        let next = if shown { self.successor(std::slice::from_ref(&src)) } else { None };
+        match self.apply_op_checked(&src.account, Op::Move { keys: vec![src.clone()], to: dest.clone() }) {
+            Err(e) => self.notice(e, true),
+            Ok(()) => {
+                if !back.is_empty() {
+                    self.moved_at = self.clock.now;
+                    self.remember(Undo::Move { moves: vec![(src.account.clone(), dest, back)] });
+                }
+                if shown {
+                    self.after_removal(next);
+                }
+            }
+        }
     }
 
     /// Start a reply to the open message, as Reply does, with `text` above its signature and

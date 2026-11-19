@@ -7,9 +7,18 @@ pub(super) fn commands() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("canned.list", "Canned text", "Message › Canned text", |s, _| Ok(json!(s.prefs.canned))),
         CommandSpec::new("canned.save", "Save canned text", "Message › Canned text", |s, v| {
-            s.save_canned(p::req_str(v, "name")?, p::req_str(v, "text")?, p::str(v, "was"))
+            let after = match v.get("after") {
+                None | Some(Value::Null) => None,
+                Some(after) => Some(
+                    serde_json::from_value::<crate::AfterReply>(after.clone())
+                        .map_err(|_| CmdError::Params(r#"`after` is "stay", "delete", "archive" or {"move": "<folder>"}"#.into()))?,
+                ),
+            };
+            s.save_canned(p::req_str(v, "name")?, p::req_str(v, "text")?, p::str(v, "was"), after)
         })
-        .params(r#"{"name": string, "text": string, "was"?: string (the one changed, by its name before; without it a new one is kept)}"#),
+        .params(
+            r#"{"name": string, "text": string, "was"?: string (the one changed, by its name before; without it a new one is kept), "after"?: "stay" | "delete" | "archive" | {"move": string} (what becomes of the message answered, once the reply is sent)}"#,
+        ),
         CommandSpec::new("canned.delete", "Delete canned text", "Message › Canned text", |s, v| s.delete_canned(p::req_str(v, "name")?))
             .params(r#"{"name": string}"#),
         CommandSpec::new("mail.cannedReply", "Reply with canned text", "Message › Canned text", |s, v| {

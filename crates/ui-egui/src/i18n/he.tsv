@@ -1832,3 +1832,8 @@ count	occurrences	פעמים
 	Reply with a text you keep for answers you give often	מענה בטקסט ששמור אצלך לתשובות שחוזרות על עצמן
 	Thanks, not interested	תודה, לא מעוניין
 	The reply opens when it's written; this can take a minute	התשובה תיפתח כשתיכתב; זה עשוי לקחת דקה
+	Archive the message	העברת ההודעה לארכיון
+	Delete the message	מחיקת ההודעה
+	Leave the message where it is	השארת ההודעה במקומה
+	Move the message to {folder}	העברת ההודעה אל {folder}
+	When the reply is sent	לאחר שליחת התשובה

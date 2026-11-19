@@ -1833,3 +1833,8 @@ count	occurrences	次
 	Reply with a text you keep for answers you give often	用您为常见答复保存的文本回复
 	Thanks, not interested	谢谢，不感兴趣
 	The reply opens when it's written; this can take a minute	回复写好后会打开；这可能需要一分钟
+	Archive the message	归档邮件
+	Delete the message	删除邮件
+	Leave the message where it is	将邮件留在原处
+	Move the message to {folder}	将邮件移到 {folder}
+	When the reply is sent	回复发送后

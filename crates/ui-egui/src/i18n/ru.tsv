@@ -1836,3 +1836,8 @@ count	occurrences	повторений
 	Reply with a text you keep for answers you give often	Ответить текстом, который вы храните для частых ответов
 	Thanks, not interested	Спасибо, не интересует
 	The reply opens when it's written; this can take a minute	Ответ откроется, когда будет написан; это может занять минуту
+	Archive the message	Архивировать письмо
+	Delete the message	Удалить письмо
+	Leave the message where it is	Оставить письмо на месте
+	Move the message to {folder}	Переместить письмо в {folder}
+	When the reply is sent	Когда ответ отправлен

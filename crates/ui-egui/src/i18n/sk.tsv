@@ -1837,3 +1837,8 @@ count	occurrences	opakovaní
 	Reply with a text you keep for answers you give often	Odpovedať textom, ktorý si uchovávate pre časté odpovede
 	Thanks, not interested	Ďakujem, nemám záujem
 	The reply opens when it's written; this can take a minute	Odpoveď sa otvorí, keď bude napísaná; môže to trvať minútu
+	Archive the message	Archivovať správu
+	Delete the message	Odstrániť správu
+	Leave the message where it is	Nechať správu tam, kde je
+	Move the message to {folder}	Presunúť správu do {folder}
+	When the reply is sent	Keď sa odpoveď odošle
